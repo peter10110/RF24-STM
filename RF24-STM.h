@@ -55,6 +55,7 @@ private:
   bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */
   uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
   uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
+  SPIClass& uSPI;
 
 protected:
   /**
@@ -236,7 +237,7 @@ public:
    * @param _cepin The pin attached to Chip Enable on the RF module
    * @param _cspin The pin attached to Chip Select
    */
-  RF24(uint8_t _cepin, uint8_t _cspin);
+  RF24(SPIClass& uSPI, uint8_t _cepin, uint8_t _cspin);
 
   /**
    * Begin operation of the chip

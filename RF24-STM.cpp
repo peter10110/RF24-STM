@@ -19,9 +19,9 @@ void RF24::csn(int16_t mode)
   // divider of 4 is the minimum we want.
   // CLK:BUS 8Mhz:2Mhz, 16Mhz:4Mhz, or 20Mhz:5Mhz
 #ifdef ARDUINO
-  SPI.setBitOrder(MSBFIRST);
-  SPI.setDataMode(SPI_MODE0);
-  SPI.setClockDivider(SPI_CLOCK_DIV4);
+  uSPI.setBitOrder(MSBFIRST);
+  uSPI.setDataMode(SPI_MODE0);
+  uSPI.setClockDivider(SPI_CLOCK_DIV4);
 #endif
   digitalWrite(csn_pin,mode);
 }
@@ -40,9 +40,9 @@ uint8_t RF24::read_register(uint8_t reg, uint8_t* buf, uint8_t len)
   uint8_t status;
 
   csn(LOW);
-  status = SPI.transfer( R_REGISTER | ( REGISTER_MASK & reg ) );
+  status = uSPI.transfer( R_REGISTER | ( REGISTER_MASK & reg ) );
   while ( len-- )
-    *buf++ = SPI.transfer(0xff);
+    *buf++ = uSPI.transfer(0xff);
 
   csn(HIGH);
 
@@ -54,8 +54,8 @@ uint8_t RF24::read_register(uint8_t reg, uint8_t* buf, uint8_t len)
 uint8_t RF24::read_register(uint8_t reg)
 {
   csn(LOW);
-  SPI.transfer( R_REGISTER | ( REGISTER_MASK & reg ) );
-  uint8_t result = SPI.transfer(0xff);
+  uSPI.transfer( R_REGISTER | ( REGISTER_MASK & reg ) );
+  uint8_t result = uSPI.transfer(0xff);
 
   csn(HIGH);
   return result;
@@ -68,9 +68,9 @@ uint8_t RF24::write_register(uint8_t reg, const uint8_t* buf, uint8_t len)
   uint8_t status;
 
   csn(LOW);
-  status = SPI.transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
+  status = uSPI.transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
   while ( len-- )
-    SPI.transfer(*buf++);
+    uSPI.transfer(*buf++);
 
   csn(HIGH);
 
@@ -86,8 +86,8 @@ uint8_t RF24::write_register(uint8_t reg, uint8_t value)
   IF_SERIAL_DEBUG(printf_P(PSTR("write_register(%02x,%02x)\r\n"),reg,value));
 
   csn(LOW);
-  status = SPI.transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
-  SPI.transfer(value);
+  status = uSPI.transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
+  uSPI.transfer(value);
   csn(HIGH);
 
   return status;
@@ -107,11 +107,11 @@ uint8_t RF24::write_payload(const void* buf, uint8_t len)
   //printf("[Writing %u bytes %u blanks]",data_len,blank_len);
   
   csn(LOW);
-  status = SPI.transfer( W_TX_PAYLOAD );
+  status = uSPI.transfer( W_TX_PAYLOAD );
   while ( data_len-- )
-    SPI.transfer(*current++);
+    uSPI.transfer(*current++);
   while ( blank_len-- )
-    SPI.transfer(0);
+    uSPI.transfer(0);
   csn(HIGH);
 
   return status;
@@ -130,11 +130,11 @@ uint8_t RF24::read_payload(void* buf, uint8_t len)
   //printf("[Reading %u bytes %u blanks]",data_len,blank_len);
   
   csn(LOW);
-  status = SPI.transfer( R_RX_PAYLOAD );
+  status = uSPI.transfer( R_RX_PAYLOAD );
   while ( data_len-- )
-    *current++ = SPI.transfer(0xff);
+    *current++ = uSPI.transfer(0xff);
   while ( blank_len-- )
-    SPI.transfer(0xff);
+    uSPI.transfer(0xff);
   csn(HIGH);
 
   return status;
@@ -147,7 +147,7 @@ uint8_t RF24::flush_rx(void)
   uint8_t status;
 
   csn(LOW);
-  status = SPI.transfer( FLUSH_RX );
+  status = uSPI.transfer( FLUSH_RX );
   csn(HIGH);
 
   return status;
@@ -160,7 +160,7 @@ uint8_t RF24::flush_tx(void)
   uint8_t status;
 
   csn(LOW);
-  status = SPI.transfer( FLUSH_TX );
+  status = uSPI.transfer( FLUSH_TX );
   csn(HIGH);
 
   return status;
@@ -173,7 +173,7 @@ uint8_t RF24::get_status(void)
   uint8_t status;
 
   csn(LOW);
-  status = SPI.transfer( NOP );
+  status = uSPI.transfer( NOP );
   csn(HIGH);
 
   return status;
@@ -288,10 +288,11 @@ void RF24::print_address_register(const char* name, uint8_t reg, uint8_t qty)
 
 /****************************************************************************/
 
-RF24::RF24(uint8_t _cepin, uint8_t _cspin):
+RF24::RF24(SPIClass& uSPI, uint8_t _cepin, uint8_t _cspin):
   ce_pin(_cepin), csn_pin(_cspin), wide_band(true), p_variant(false), 
   payload_size(32), ack_payload_available(false), dynamic_payloads_enabled(false),
-  pipe0_reading_address(0)
+  pipe0_reading_address(0),
+  uSPI(uSPI)
 {
 }
 
@@ -398,7 +399,7 @@ void RF24::begin(void)
   pinMode(csn_pin,OUTPUT);
 
   // Initialize SPI bus
-  SPI.begin();
+  uSPI.begin();
 
   ce(LOW);
   csn(HIGH);
@@ -589,8 +590,8 @@ uint8_t RF24::getDynamicPayloadSize(void)
   uint8_t result = 0;
 
   csn(LOW);
-  SPI.transfer( R_RX_PL_WID );
-  result = SPI.transfer(0xff);
+  uSPI.transfer( R_RX_PL_WID );
+  result = uSPI.transfer(0xff);
   csn(HIGH);
 
   return result;
@@ -721,8 +722,8 @@ void RF24::openReadingPipe(uint8_t child, uint64_t address)
 void RF24::toggle_features(void)
 {
   csn(LOW);
-  SPI.transfer( ACTIVATE );
-  SPI.transfer( 0x73 );
+  uSPI.transfer( ACTIVATE );
+  uSPI.transfer( 0x73 );
   csn(HIGH);
 }
 
@@ -786,11 +787,11 @@ void RF24::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
   const uint8_t* current = reinterpret_cast<const uint8_t*>(buf);
 
   csn(LOW);
-  SPI.transfer( W_ACK_PAYLOAD | ( pipe & B111 ) );
+  uSPI.transfer( W_ACK_PAYLOAD | ( pipe & B111 ) );
   const uint8_t max_payload_size = 32;
   uint8_t data_len = min(len,max_payload_size);
   while ( data_len-- )
-    SPI.transfer(*current++);
+    uSPI.transfer(*current++);
 
   csn(HIGH);
 }
